@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/Aerospace91/AeroShell/internal/parser"
@@ -38,9 +39,68 @@ func (s *Shell) Run() error {
 			continue
 		}
 
-		fmt.Fprintf(s.Out, "command: %s\n", command.Name)
-		fmt.Fprintf(s.Out, "args: %v\n", command.Args)
+		handled, shouldExit := s.handleBuiltin(command)
+
+		if shouldExit {
+			return nil
+		}
+
+		if !handled {
+			fmt.Fprintf(s.Err, "aeroshell: %s: command not found\n", command.Name)
+		}
+
 	}
 
 	return scanner.Err()
+}
+
+func (s *Shell) handleBuiltin(command parser.Command) (handled bool, shouldExit bool) {
+	switch command.Name {
+	case "pwd":
+		s.pwd()
+		return true, false
+
+	case "cd":
+		s.cd(command.Args)
+		return true, false
+	case "exit":
+		if len(command.Args) > 0 {
+			fmt.Fprintln(s.Err, "aeroshell: exit: too many arguments")
+			return true, false
+		}
+		return true, true
+	default:
+		return false, false
+	}
+}
+
+func (s *Shell) pwd() {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(s.Err, "aeroshell: pwd: %v\n", err)
+		return
+	}
+	fmt.Fprintln(s.Out, dir)
+}
+
+func (s *Shell) cd(args []string) {
+	var dir string
+
+	switch len(args) {
+	case 0:
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Fprintf(s.Err, "aeroshell: cd: %v\n", err)
+			return
+		}
+		dir = homeDir
+	case 1:
+		dir = args[0]
+	default:
+		fmt.Fprintln(s.Err, "aeroshell: cd: too many arguments")
+		return
+	}
+	if err := os.Chdir(dir); err != nil {
+		fmt.Fprintf(s.Err, "aeroshell: cd: %v\n", err)
+	}
 }
