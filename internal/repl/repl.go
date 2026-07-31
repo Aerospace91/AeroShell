@@ -2,9 +2,11 @@ package repl
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/Aerospace91/AeroShell/internal/parser"
@@ -45,9 +47,11 @@ func (s *Shell) Run() error {
 			return nil
 		}
 
-		if !handled {
-			fmt.Fprintf(s.Err, "aeroshell: %s: command not found\n", command.Name)
+		if handled {
+			continue
 		}
+
+		s.execute(command)
 
 	}
 
@@ -103,4 +107,23 @@ func (s *Shell) cd(args []string) {
 	if err := os.Chdir(dir); err != nil {
 		fmt.Fprintf(s.Err, "aeroshell: cd: %v\n", err)
 	}
+}
+
+func (s *Shell) execute(command parser.Command) {
+	cmd := exec.Command(command.Name, command.Args...)
+	cmd.Stdin = s.In
+	cmd.Stdout = s.Out
+	cmd.Stderr = s.Err
+
+	err := cmd.Run()
+	if err == nil {
+		return
+	}
+
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) {
+		return
+	}
+
+	fmt.Fprintf(s.Err, "aeroshell: %s: command not found\n", command.Name)
 }
