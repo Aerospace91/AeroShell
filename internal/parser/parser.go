@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"strings"
+	"unicode"
 )
 
 type Command struct {
@@ -10,19 +11,81 @@ type Command struct {
 	Args []string
 }
 
-func Parse(line string) (Command, error) {
-	fields := strings.Fields(line)
+type parseState int
 
-	if len(fields) == 0 {
-		return Command{
-			Name: "",
-			Args: nil,
-		}, errors.New("Empty Command or Inputs")
+const (
+	unquoted parseState = iota
+	singleQuoted
+	doubleQuoted
+)
+
+func Parse(line string) (Command, error) {
+	tokens, err := tokenize(line)
+
+	if err != nil {
+		return Command{}, err
+	}
+
+	if len(tokens) == 0 {
+		return Command{}, errors.New("empty command")
 	}
 
 	return Command{
-		Name: fields[0],
-		Args: fields[1:],
+		Name: tokens[0],
+		Args: tokens[1:],
 	}, nil
 
+}
+
+func tokenize(line string) ([]string, error) {
+	tokens := []string{}
+	var current strings.Builder
+
+	state := unquoted
+	inToken := false
+
+	for _, char := range line {
+		switch state {
+		case unquoted:
+			switch {
+			case unicode.IsSpace(char):
+				if inToken {
+					tokens = append(tokens, current.String())
+					current.Reset()
+					inToken = false
+				}
+			case char == '\'':
+				state = singleQuoted
+				inToken = true
+			case char == '"':
+				state = doubleQuoted
+				inToken = true
+			default:
+				current.WriteRune(char)
+				inToken = true
+			}
+		case singleQuoted:
+			if char == '\'' {
+				state = unquoted
+			} else {
+				current.WriteRune(char)
+			}
+		case doubleQuoted:
+			if char == '"' {
+				state = unquoted
+			} else {
+				current.WriteRune(char)
+			}
+		}
+	}
+
+	if state != unquoted {
+		return nil, errors.New("unterminated quote")
+	}
+
+	if inToken {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens, nil
 }
