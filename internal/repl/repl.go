@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/Aerospace91/AeroShell/internal/parser"
 )
 
 type Shell struct {
@@ -30,7 +32,14 @@ func (s *Shell) Run() error {
 			continue
 		}
 
-		fmt.Fprintf(s.Out, "You entered: %s\n", line)
+		command, err := parser.Parse(line)
+		if err != nil {
+			fmt.Fprintf(s.Err, "aeroshell: %v\n", err)
+			continue
+		}
+
+		fmt.Fprintf(s.Out, "command: %s\n", command.Name)
+		fmt.Fprintf(s.Out, "args: %v\n", command.Args)
 	}
 
 	return scanner.Err()

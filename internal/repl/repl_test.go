@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestShellReadsandEchoesInput(t *testing.T) {
-	input := strings.NewReader("hello\n")
+func TestShellParsesInput(t *testing.T) {
+	input := strings.NewReader("echo hello world\n")
 	var output bytes.Buffer
 
 	shell := &Shell{
@@ -23,14 +23,16 @@ func TestShellReadsandEchoesInput(t *testing.T) {
 	}
 
 	got := output.String()
-	want := "aeroshell$ You entered: hello\n" + "aeroshell$ "
+	want := "aeroshell$ command: echo\n" +
+		"args: [hello world]\n" +
+		"aeroshell$ "
 
 	if got != want {
-		t.Errorf("output mismatch\nwant: %q\ngot: %q", want, got)
+		t.Errorf("output mismatch\nwant: %q\ngot:  %q", want, got)
 	}
 }
 
-func TestShellReadsandEchoesInputWithNewLine(t *testing.T) {
+func TestShellIgnoresBlankLines(t *testing.T) {
 	input := strings.NewReader("\n \nhello\n")
 	var output bytes.Buffer
 
@@ -47,9 +49,13 @@ func TestShellReadsandEchoesInputWithNewLine(t *testing.T) {
 	}
 
 	got := output.String()
-	want := "aeroshell$ " + "aeroshell$ " + "aeroshell$ You entered: hello\n" + "aeroshell$ "
+	want := "aeroshell$ " +
+		"aeroshell$ " +
+		"aeroshell$ command: hello\n" +
+		"args: []\n" +
+		"aeroshell$ "
 
 	if got != want {
-		t.Errorf("output mismatch\nwant: %q\ngot: %q", want, got)
+		t.Errorf("output mismatch\nwant: %q\ngot:  %q", want, got)
 	}
 }
